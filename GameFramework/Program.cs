@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using OpenTK;
+using OpenTK.Graphics;
+using OpenTK.Graphics.OpenGL4;
+using OpenTK.Input;
 
 namespace GameFramework
 {
-    /// <summary>
-    /// Main entry point static class for the program.
-    /// </summary>
-    public class Program
+    class Program
     {
         /// <summary>
         /// Main entry point static method for the program.

@@ -129,6 +129,7 @@ namespace GameFramework
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, ind);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(Indices.Length * sizeof(uint)), Indices, BufferUsageHint.StaticDraw);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+
             int Object = GL.GenVertexArray();
             GL.BindVertexArray(Object);
             GL.BindBuffer(BufferTarget.ArrayBuffer, pos);
@@ -185,57 +186,45 @@ namespace GameFramework
         /// <summary>
         /// Converts a texture (input by file name) to a valid GL texture.
         /// </summary>
-        /// <param name="file_name">The file name.</param>
-        /// <returns>The GL object.</returns
-        public static int LoadTexture(string file_name)
+        /// <param name="file">The file name.</param>
+        /// <returns>The GL object.</returns>
+        public static int LoadTexture(string file)
         {
-            // Load a bitmap from file, and mark it as used only this block, so it Disposes at the end.
-            using (Bitmap bmp = new Bitmap(file_name))
-            {
-                // Generate a texture.
-                int tex = GL.GenTexture();
-                // Bind the texture as a 2D texture.
-                GL.BindTexture(TextureTarget.Texture2D, tex);
-                // Lock all the bits in the bitmap for external usage as ARGB.
-                BitmapData bmpdata = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height),
-                    ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                // Upload the image to the texture, in 2D format, no mipmapping, RGBA texture format,
-                // size of the bitmap, no border, RGBA read format, 1 standard byte per pixel, from the bmp's locked data.
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, bmp.Width, bmp.Height,
-                    0, OpenTK.Graphics.OpenGL4.PixelFormat.Rgba, PixelType.UnsignedByte, bmpdata.Scan0);
-                // Release the bits now that OpenGL controls the data.
-                bmp.UnlockBits(bmpdata);
-                // Set the parameter "min(ification) filter" to "linear",
-                // to indicate that shrinking the texture will use Linear Interpolation ("lerping") to improve quality.
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-                // Set the parameter "mag(nification) filter" to "linear",
-                // to indicate that enlarging the texture will use Linear Interpolation ("lerping") to improve quality.
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-                // Set both vertical and horizontal texture reads to repeat if out-of-bounds.
-                // (EG if you have '0' and '2' as texture coordinates, you will see two copies of the texture spread between those points).
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-                // Return the resultant texture.
-                return tex;
-            }
+            int Texture = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, Texture);
+            Bitmap bmp = new Bitmap(file);
+            BitmapData bmp_data = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, bmp_data.Width, bmp_data.Height, 0, OpenTK.Graphics.OpenGL4.PixelFormat.Bgra, PixelType.UnsignedByte, bmp_data.Scan0);
+            bmp.UnlockBits(bmp_data);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
+            bmp.Dispose();
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+            return Texture;
         }
 
         /// <summary>
-        /// Checks for errors within the graphics engine.
+        /// Apply the projection matrix from the camera POV.
         /// </summary>
-        /// <param name="time">Indicates when or where there might be an error.</param>
-        public static void CheckError(string time)
+        /// <param name="file">The file name.</param>
+        /// <returns>The GL object.</returns>
+        public static void CameraView()
         {
-            // Read the GL error code.
-            ErrorCode ec = GL.GetError();
-            // So long as the error code isn't "none":
-            while (ec != ErrorCode.NoError)
-            {
-                // Output some information about it!
-                Console.WriteLine("Error: " + ec + ", at: " + time + "::\n " + Environment.StackTrace);
-                // Reset the error code to whatever's next in line.
-                ec = GL.GetError();
-            }
+            Quaternion Q = GameInternal.GetRotation();
+            Vector3 forward = Vector3.Transform(-Vector3.UnitZ, Q);
+
+            Matrix4 View = Matrix4.LookAt(GameInternal.Center, GameInternal.Center + forward, Vector3.UnitY);
+            Matrix4 Perspective = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI * 0.5f, GameInternal.Window.Width / (float)GameInternal.Window.Height, 0.1f, 1000f);
+
+            Matrix4 Projection = View * Perspective;
+
+            GL.UniformMatrix4(1, false, ref Projection);
+
+            GL.ClearBuffer(ClearBuffer.Color, 0, new float[] { 0, 0, 0, 1 });
+            GL.ClearBuffer(ClearBuffer.Depth, 0, new float[] { 1 });
         }
     }
 }
